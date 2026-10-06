@@ -4,10 +4,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.PriorityQueue;
+import java.util.Iterator;
 import java.util.Queue;
 import java.util.Scanner;
 import java.util.Stack;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 
 
  enum State {
@@ -35,7 +37,7 @@ class Screen{
     private HashMap<State, StateEnterExitMeth> stateExitMeths;
     Stack <Character> stack = new Stack<>();
     ArrayList<Character> list = new ArrayList<>();
-    Queue<Character>queue = new PriorityQueue<>();
+    Queue<Character>queue = new ConcurrentLinkedQueue<>();
     
     public Screen(){
         stateEnterMeths = new HashMap<>();
@@ -57,13 +59,15 @@ class Screen{
         stateExitMeths.put(State.STACK, this::stateExitStack);
         stateExitMeths.put(State.QUEUE, this::stateExitQueue);
         
-        state = State.LIST;
         changeState(State.IDLE);
     }
 
     // state methods
     public void changeState(State newState){
         if (state != newState){
+            if (stateExitMeths.containsKey(state)){
+                stateExitMeths.get(state).invoke();
+            }
             state = newState;
             if (stateEnterMeths.containsKey(newState)){
                 stateEnterMeths.get(newState).invoke();
@@ -72,7 +76,7 @@ class Screen{
     }
 
     
-    public boolean  doState(){
+    public boolean doState(){
         return stateStayMeths.get(state).invoke();
     } 
  
@@ -129,19 +133,34 @@ class Screen{
             while(reader.hasNext()){
                 queue.add(reader.next().charAt(0));
             }
-            System.out.println(queue);
+            //System.out.println(queue);
         } catch (FileNotFoundException e) {
         }
     }
 
-    private void stateEnterList(){System.out.println(".()");}
+    private void stateEnterList(){
+        File file = new File(LISTFILE);
+        //System.out.println(file.canRead());
+        
+        try (Scanner reader = new Scanner(file)){
+            reader.useDelimiter(",");
+            //list.add('e');
+            while(reader.hasNext()){
+                //System.out.println("here");
+                //list.add('e');
+                list.add(reader.next().charAt(0));
+            }
+            //System.out.println(list);
+        } catch (FileNotFoundException e) {
+        }
+    }
 
     private boolean stateStayIdle(){ return false;}
 
     private boolean stateStayStack(){ 
         while(state == State.STACK){
             for (int idx = stack.size()-1; idx > -1; idx--) {
-                //System.out.print("");
+                System.out.println("|___|");
                 System.out.println("| " + stack.elementAt(idx) + " |");
             }
 
@@ -153,6 +172,7 @@ class Screen{
             System.out.println("4. Save & Move to List");
             System.out.println("5. Save & Quit");
             System.out.print("? ");
+            
 
             String input = scanner.nextLine();
             //System.out.println(input);
@@ -166,34 +186,34 @@ class Screen{
                     }
                     break;
                 case 3:
-                    stateExitStack();
                     changeState(State.QUEUE);
-                    stateEnterQueue();
                     break;
                 case 4:
-                    stateExitStack();
                     changeState(State.LIST);
-                    stateEnterList();
                     break;
                 case 5:
+                    //System.out.println("check");
+                    stateExitStack();
                     return false;
                 default:
                     throw new AssertionError();
             }
         }
-        System.out.println("\f");
-        //System.out.flush();
+        System.out.print("\033[H\033[2J");
+        System.out.flush();
         return true;
     }
 
     private boolean stateStayQueue(){ 
         while(state == State.QUEUE){
-            for (int idx = queue.size()-1; idx > -1; idx--) {
+            Iterator i = queue.iterator();
+            while (i.hasNext()) {
                 //System.out.println("|___|");
-                System.out.println("| " + queue.toString().charAt(idx) + " |");
+                System.out.print("| " + i.next() +" ");
             }
 
-            //System.out.println("|___|");
+            System.out.print("|");
+            System.out.println("");
             Scanner scanner = new Scanner(System.in);
             System.out.println("1. Enqueue");
             System.out.println("2. Dequeue");
@@ -214,28 +234,73 @@ class Screen{
                     }
                     break;
                 case 3:
-                    stateExitStack();
                     changeState(State.STACK);
-                    stateEnterQueue();
                     break;
                 case 4:
-                    stateExitStack();
                     changeState(State.LIST);
-                    stateEnterList();
                     break;
                 case 5:
+                    //System.out.println("check");
+                    stateExitQueue();
                     return false;
                 default:
                     throw new AssertionError();
             }
         }
-        System.out.println("\f");
-        //System.out.flush();
+        System.out.print("\033[H\033[2J");
+        System.out.flush();
         return true;
     }
 
 
-    private boolean stateStayList(){ return false;}
+    private boolean stateStayList(){ 
+        while(state == State.LIST){
+            System.out.print("{ ");
+            for (int idx = 0; idx < list.size(); idx++) {
+                //System.out.println("|___|");
+                System.out.print(list.get(idx) + ", ");
+            }
+
+            System.out.print("}");
+            System.out.println("");
+            Scanner scanner = new Scanner(System.in);
+            System.out.println("1. Append");
+            System.out.println("2. Remove");
+            System.out.println("3. Save & Move to Stack");
+            System.out.println("4. Save & Move to Queue");
+            System.out.println("5. Save & Quit");
+            System.out.print("? ");
+
+            String input = scanner.nextLine();
+            //System.out.println(input);
+            switch (Character.getNumericValue(input.charAt(0))) {
+                case 1:
+                    list.add(input.charAt(2));
+                    break;
+                case 2:
+                    if(!list.isEmpty()){
+                        list.removeLast();
+                    }
+                    break;
+                case 3:
+                    changeState(State.STACK);
+                    break;
+                case 4:
+                    changeState(State.QUEUE);
+                    break;
+                case 5:
+                    //System.out.println("check");
+                    stateExitList();
+                    return false;
+                default:
+                    throw new AssertionError();
+            }
+        }
+        System.out.print("\033[H\033[2J");
+        System.out.flush();
+        return true;
+    }
+    
 
     private void stateExitIdle(){}
 
@@ -250,11 +315,38 @@ class Screen{
             
         } catch (IOException e) {
         }
+        stack = new Stack<>();
     }
 
-    private void stateExitQueue(){}
+    private void stateExitQueue(){
+        try {
+            FileWriter writer = new FileWriter(QUEUEFILE);
+            Iterator i = queue.iterator();
+            while (i.hasNext()) {
+                writer.write(i.next()+",");
+            }
+            writer.close();
+            
+        } catch (IOException e) {
+        }
+        queue = new ConcurrentLinkedQueue<>();
+    }
 
-    private void stateExitList(){}
+    private void stateExitList(){
+        try {
+            FileWriter writer = new FileWriter(LISTFILE);
+            //System.out.println(list.size());
+            for (int idx = 0; idx < list.size(); idx++) {
+                //System.out.println(list.get(idx));
+                writer.write(list.get(idx)+",");
+                
+            }
+            writer.close();
+            
+        } catch (IOException e) {
+        }
+        list = new ArrayList<>();
+    }
 }
 
 
